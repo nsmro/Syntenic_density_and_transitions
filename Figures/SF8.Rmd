@@ -1,0 +1,116 @@
+---
+title: "SF8"
+author: NSMR
+output: pdf_document
+---
+
+
+
+```{r}
+library(readr)
+library(ggplot2)
+library(gridExtra)
+library(grid)
+library(gdata)
+library(ggpubr)
+library(cowplot)
+library(RColorBrewer)
+library(pheatmap)
+library(tidyr)
+```
+
+
+
+```{r}
+df <- readr::read_csv('key_nodes.tidydf.csv')
+
+```
+
+Here we define a function to make boxplots by taxon
+```{r}
+
+map_signif_level <- c(`****` = 1e-04, `***` = 0.001,  `**` = 0.01, `*` = 0.05, ns = 1)
+
+make_plot <- function(tbl,
+                      key = "observed",
+                      comparisons = list(c("observed", "random")),
+                      bracket_y = NULL,
+                      ylims = c(0 , 0.0001)) {
+
+  if(is.null(bracket_y)) {
+    h = ylims[2] - ylims[1]
+    bracket_y = c(.9,.825,.75)*h + ylims[1]
+  }
+
+  size.summary <- tbl %>% dplyr::filter(random == "observed") %>%  dplyr::group_by(taxon) %>%  dplyr::summarize(label = paste0("n=",dplyr::n()))
+  ggplot(tbl, aes_string(x = 'random', y = 'median_dist_pair_norm', fill = 'random')) +
+    geom_boxplot(outlier.shape = NA) +
+    facet_grid(~ taxon) +
+    theme_cowplot() +
+    theme(axis.title.x = element_blank(), axis.text.x = element_blank()) +
+    geom_signif(comparisons = comparisons,
+                test = "wilcox.test", test.args = list(paired = FALSE, exact = FALSE), na.rm = TRUE,
+                map_signif_level = map_signif_level,
+                color="black", tip_length = 0.01, size = .5, textsize = 2,
+                y_position = bracket_y,  data = NULL) +
+    scale_y_continuous(name = "Median distance between consecutive genes (fraction of genome)", limits = ylims) +
+    theme(legend.title = element_blank(),
+          plot.margin = unit(c(1,0,0,0), units='cm'),
+          legend.position = 'bottom',
+          legend.justification = 'center',
+          strip.text = element_text(size = 6, angle = 90, margin = margin(5,0,5,0,'pt')),
+          axis.ticks.x = element_blank(),
+          axis.title.y = element_text(size = 7),
+          axis.text = element_text(size = 6)) +
+    geom_text(data=size.summary, aes(x=1,y= 0.000093,hjust = 0.5,label = label), size = 2, inherit.aes=F)
+}
+```
+
+
+
+```{r}
+
+df$taxon <- factor(df$taxon, levels=c('Poriferan','Ctenophore','Placozoan','Cnidarian', 'Acoel','Ecdysozoan', 'Lophotrochozoan', 'Ambulacrarian', 'Cephalochordate', 'Tunicate', 'Vertebrate'))
+df$node <- as.factor(df$node)
+df$random <- as.factor(df$random)
+df$species <- factor(df$species, levels = c('CAPOW', 'SALRO', 'AMPQU', 'SYCCI', 'MNELE', 'PLEBA', 'TRIAD', 'HOIHO', 'AURAU', 'CLYHE', 'HYDVU', 'ACRMI', 'EXAPA', 'NEMVE', 'HOFMI', 'CAEEL', 'PARTE', 'IXOSC', 'STRMA', 'DAPPU', 'TRICA', 'ANOGA', 'DROME', 'SCHME', 'LINAN', 'ADIVA', 'HELRO', 'CRAGI', 'MIZYE', 'LOTGI', 'EUPSC', 'CAPTE', 'ACAPL', 'STRPU', 'PTYFL', 'SACKO', 'BRALA', 'CIOIN', 'CALMI', 'LEPOC', 'DANRE', 'HIPCO', 'MAYZE', 'LATCH', 'XENTR', 'GALGA', 'CHEMY', 'MUSMU', 'HOMSA'))
+
+df_para_Met <- df %>% dplyr::filter(para == 'para' & node == 'Metazoa')
+df_para_Par <- df %>% dplyr::filter(para == 'para' & node == 'Parahoxozoa')
+df_para_Pla <- df %>% dplyr::filter(para == 'para' & node == 'Planulozoa')
+df_para_Bil <- df %>% dplyr::filter(para == 'para' & node == 'Bilateria')
+df_para_Ver <- df %>% dplyr::filter(para == 'para' & node == 'Vertebrata')
+df_para_Lop <- df %>% dplyr::filter(para == 'para'  & node == 'Lophotrochozoa')
+df_not_para_Met <- df %>% dplyr::filter(para == 'not_para' & node == 'Metazoa')
+df_not_para_Par <- df %>% dplyr::filter(para == 'not_para' & node == 'Parahoxozoa')
+df_not_para_Pla <- df %>% dplyr::filter(para == 'not_para' & node == 'Planulozoa')
+df_not_para_Bil <- df %>% dplyr::filter(para == 'not_para' & node == 'Bilateria')
+df_not_para_Ver <- df %>% dplyr::filter(para == 'not_para' & node == 'Vertebrata')
+df_not_para_Lop <- df %>% dplyr::filter(para == 'not_para' & node == 'Lophotrochozoa')
+
+```
+
+Every make_plot call for all the possibilities. Done so so that we can have ggpubr tests with facetting.
+```{r}
+p1 <- make_plot(df_not_para_Met)
+p2 <- make_plot(df_para_Met)
+p3 <- make_plot(df_not_para_Par)
+p4 <- make_plot(df_para_Par)
+p5 <- make_plot(df_not_para_Pla)
+p6 <- make_plot(df_para_Pla)
+p7 <- make_plot(df_not_para_Bil)
+p8 <- make_plot(df_para_Bil)
+p9 <- make_plot(df_not_para_Ver)
+p10 <- make_plot(df_para_Ver)
+p11 <- make_plot(df_not_para_Lop)
+p12 <- make_plot(df_para_Lop)
+
+gridplot <- gridExtra::grid.arrange(grobs = list(p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12), ncol = 2)
+
+ggsave(plot = gridplot,
+       filename = 'SF5_consecutivepairs_taxons_meds.pdf',
+       unit = 'cm',
+       width = 30,
+       height = 80)
+```
+

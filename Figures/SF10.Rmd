@@ -1,0 +1,96 @@
+---
+title: "SF10 hox and wnt boxplots"
+author: NSMR
+output: pdf_document
+
+---
+```{r}
+library(readr)
+library(ggplot2)
+library(gridExtra)
+library(grid)
+library(ggpubr)
+library(cowplot)
+library(RColorBrewer)
+
+```
+
+
+Now we'll load up the data, change iteration/phylo_hypothesis to factor type data
+```{r}
+df_wnt <- readr::read_csv("wnt.tidydf.csv")
+df_hox <- readr::read_csv("hox.tidydf.csv")
+
+```
+
+
+Here we define a function to make boxplots of the supp figure.
+```{r}
+map_signif_level <- c(`****` = 1e-04, `***` = 0.001,  `**` = 0.01, `*` = 0.05, ns = 1)
+
+make_plot <- function(tbl,
+                      key = "observed",
+                      comparisons = list(c("observed", "random")),
+                      bracket_y = NULL,
+                      ylims = c(-2.5 , 2.5)) {
+
+  if(is.null(bracket_y)) {
+    h = ylims[2] - ylims[1]
+    bracket_y = c(.9,.825,.75)*h + ylims[1]
+  }
+
+  size.summary <- tbl %>% dplyr::filter(random == "observed") %>%  dplyr::group_by(taxon) %>%  dplyr::summarize(label = paste0("n=",dplyr::n()))
+  ggplot(tbl, aes_string(x = 'random', y = 'log10_density_ratio', fill = 'random')) +
+    geom_boxplot(outlier.shape = NA) +
+    facet_grid(~ taxon) +
+    theme_cowplot() +
+    theme(axis.title.x = element_blank(), axis.text.x = element_blank()) +
+    geom_signif(comparisons = comparisons,
+                test = "wilcox.test", test.args = list(paired = FALSE, exact = FALSE), na.rm = TRUE,
+                map_signif_level = map_signif_level,
+                color="black", tip_length = 0.01, size = .5, textsize = 2,
+                y_position = bracket_y,  data = NULL) +
+    scale_y_continuous(name = "log10(Density ratio)", limits = c(-2.5, 2.5)) +
+    theme(legend.title = element_blank(),
+          plot.margin = unit(c(1,0,0,0), units='cm'),
+          legend.position = 'bottom',
+          legend.justification = 'center',
+          strip.text = element_text(size = 6, angle = 90, margin = margin(5,0,5,0,'pt')),
+          axis.ticks.x = element_blank(),
+          axis.title.y = element_text(size = 7),
+          axis.text = element_text(size = 6)) +
+    geom_text(data=size.summary, aes(x=1,y=2.2,hjust = 0.5,label = label), size = 2, inherit.aes=F)
+}
+```
+
+Modify data format to make it easy to use
+```{r}
+df_wnt$taxon <- factor(df_wnt$taxon, levels=c('Poriferan','Ctenophore','Placozoan','Cnidarian', 'Acoel','Ecdysozoan', 'Lophotrochozoan', 'Ambulacrarian', 'Cephalochordate', 'Tunicate', 'Vertebrate'))
+df_wnt$node <- as.factor(df_wnt$node)
+df_wnt$random <- as.factor(df_wnt$random)
+df_wnt$species <- as.factor(df_wnt$species)
+df_wnt$log10_density_ratio <- log10(df_wnt$density_ratio)
+
+df_hox$taxon <-  factor(df_hox$taxon, levels=c('Poriferan','Ctenophore','Placozoan','Cnidarian', 'Acoel','Ecdysozoan', 'Lophotrochozoan', 'Ambulacrarian', 'Cephalochordate', 'Tunicate', 'Vertebrate'))
+df_hox$node <- as.factor(df_hox$node)
+df_hox$random <- as.factor(df_hox$random)
+df_hox$species <- as.factor(df_hox$species)
+df_hox$log10_density_ratio <- log10(df_hox$density_ratio)
+```
+Make the plots and save them
+
+```{r}
+hox_p <- make_plot(df_hox)
+wnt_p <- make_plot(df_wnt)
+
+gridplot <- gridExtra::grid.arrange(grobs = list(hox_p,wnt_p), ncol = 2)
+
+ggsave(plot = gridplot,
+       filename = 'hox_wnt.pdf',
+       unit = 'cm',
+       width = 15,
+       height = 12)
+
+
+```
+

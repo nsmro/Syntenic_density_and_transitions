@@ -1,0 +1,55 @@
+---
+title: "SF55"
+author: NSMR
+output: pdf_document
+---
+```{r}
+library(readr)
+library(ggplot2)
+library(ggrepel)
+library(ggpubr)
+library(scales)
+library(cowplot)
+
+```
+
+
+
+
+
+Now we'll load up the data, change iteration/phylo_hypothesis to factor type data
+```{r}
+df <- readr::read_csv("key_nodes.tidydf.csv")
+
+
+```
+
+```{r}
+df_stats <- readr::read_csv("genome_stats.csv")
+
+df <- dplyr::left_join(df, df_stats, by = 'species')
+ 
+```
+
+
+
+Plot reciprocal genome density as a funtion of assembly size
+```{r}
+df$reciprocal_total_density <- 1 / df$total_density
+
+p<- ggplot2::ggplot(df, aes_string(x= 'genome_length', y = 'reciprocal_total_density')) +
+    ggplot2::geom_smooth(method = lm) +
+    ggplot2::geom_point() +
+    ggpubr::stat_cor(size = 2, label.y = 175000) +
+    ggpubr::stat_regline_equation(size = 2, label.y = 200000) +
+    ggplot2::scale_y_continuous(name = "Reciprocal of whole genome density") +
+    ggplot2::scale_x_continuous(name = "Assembly size") +
+    cowplot::theme_cowplot(font_size = 8)
+
+ggsave(filename = 'SF2_Metazoa_assembly_size_total_density.pdf',
+       plot = p,
+       units = 'cm',
+       width = 10,
+       height = 6)
+
+```
